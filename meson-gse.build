@@ -1,9 +1,9 @@
-meson_gse_project(
+gse_project(
   {steelseries-battery-indicator}, 
   {szczad.pl}, 
   {1},
 {
-gse_sources         += files('src/utils.js')
+gse_sources         += files('src/utils.js', 'src/indicator.js')
 gse_libs            += []
 gse_data            += []
 gse_schemas         += []

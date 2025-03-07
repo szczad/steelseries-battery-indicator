@@ -1,6 +1,6 @@
 import Gio from "gi://Gio";
 
-const LOG_NAME = "steelseries-indicator@szczad.pl";
+const LOG_NAME = "steelseries-battery-indicator@szczad.pl";
 
 /**
  * @param {string[]} Arguments to the command line.
