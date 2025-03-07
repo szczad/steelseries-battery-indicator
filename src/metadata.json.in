@@ -1,0 +1,16 @@
+{
+  "name": "SteelSeries Battery Indicator",
+  "description": "Shows battery status of your SteelSeries mouse",
+  "url": "https://github.com/szczad/steelseries-indicator",
+  "uuid": "@uuid@",
+  "shell-version": [
+    "45",
+    "46",
+    "47",
+    "48"
+  ],
+  "gettext-domain": "@gettext_domain@",
+  "vcs_revision": "@VCS_TAG@",
+  "version": @version@
+}
+
