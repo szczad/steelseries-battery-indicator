@@ -26,37 +26,31 @@ import * as PanelMenu from "resource:///org/gnome/shell/ui/panelMenu.js";
 import * as PopupMenu from "resource:///org/gnome/shell/ui/popupMenu.js";
 
 import * as utils from "./utils.js";
-
-const MOUSE_STATE_UPDATE_INTERVAL = 5 * 1_000;
-const UI_UPDATE_INTERVAL = 1_000;
-
-const MOUSE_STATUS = {
-  UNKNOWN: "unknown",
-  CHARGING: "charging",
-  DISCHARGING: "discharging",
-};
+import { MOUSE_STATE_UPDATE_INTERVAL, MOUSE_STATUS } from "./constants.js";
 
 export default class SteelSeriesIndicator extends PanelMenu.Button {
   static {
     GObject.registerClass(this);
   }
 
-  #extension = null;
-
   #widgets = {};
 
   /** @type {{ [key: string]: number }} */
-  #sourceIds = {};
+  #source = 0;
 
-  #state = {};
-
-  constructor(extension) {
+  constructor(_) {
     super(null);
 
-    this.#extension = extension;
-
     this.#initUI();
-    this.#initSources();
+    this.#initSources(0);
+  }
+
+  #initSources(timeout = null) {
+    this.#source = GLib.timeout_add(
+      GLib.PRIORITY_DEFAULT,
+      timeout !== null ? timeout : MOUSE_STATE_UPDATE_INTERVAL,
+      () => this.updateBatteryState(),
+    );
   }
 
   #initUI() {
@@ -85,97 +79,59 @@ export default class SteelSeriesIndicator extends PanelMenu.Button {
 
     let item = new PopupMenu.PopupMenuItem(_("Refresh status"));
     item.connect("activate", async () => {
-      utils.log("Manually refreshing");
-      await this.refresh();
+      this.#initSources(0);
     });
     this.menu.addMenuItem(item);
   }
 
-  async #initSources() {
-    utils.log("Initializing sources");
-    await this.refresh();
+  updateBatteryState() {
+    try {
+      utils.callCommandAsync(["rivalcfg", "--battery-level"], (state) => {
+        this.#initSources();
+        if (state.code !== 0) {
+          utils.log(`Error getting battery state: ${state.stderr}`);
 
-    utils.log("Setting up sources: refresh");
-    this.#sourceIds.refresh = GLib.timeout_add(
-      GLib.PRIORITY_DEFAULT,
-      MOUSE_STATE_UPDATE_INTERVAL,
-      () => this.refresh(),
-    );
+          this.#updateUI(MOUSE_STATUS.UNKNOWN, -1);
+          return;
+        }
 
-    utils.log("Setting up sources: repaint");
-    this.#sourceIds.repaint = GLib.timeout_add(
-      GLib.PRIORITY_DEFAULT,
-      UI_UPDATE_INTERVAL,
-      () => this.repaint(),
-    );
+        const out = state.stdout.split(" ");
+
+        let status = MOUSE_STATUS.UNKNOWN;
+        if (out[0] === "Charging") {
+          status = MOUSE_STATUS.CHARGING;
+        } else if (out[0] === "Discharging") {
+          status = MOUSE_STATUS.DISCHARGING;
+        }
+
+        let level = "-1";
+        if (status !== MOUSE_STATUS.UNKNOWN) {
+          level = out[out.length - 2];
+        }
+
+        this.#updateUI(status, level);
+      });
+    } catch (e) {
+      this.#initSources();
+      utils.log(`ERROR: ${e}`);
+
+      this.#updateUI(MOUSE_STATUS.UNKNOWN, -1);
+    }
+
+    return GLib.SOURCE_DESTROY;
   }
 
-  async refresh() {
-    utils.log(`Refreshing state`);
-    this.#state = await this.#getBatteryState();
-    utils.log(`Battery state: ${this.#state.status}, ${this.#state.level}`);
+  #updateUI(status, level) {
+    this.#widgets.icon.icon_name = this.#getBatteryIcon(status, level);
+    this.#widgets.label.text = this.#getBatteryLevelString(level);
 
-    return GLib.SOURCE_CONTINUE;
-  }
-
-  repaint() {
-    this.#widgets.icon.icon_name = this.#getBatteryIcon(
-      this.#state.status,
-      this.#state.level,
-    );
-    this.#widgets.label.text = `${this.#state.level}%`;
-
-    if (this.#state.status === MOUSE_STATUS.CHARGING) {
+    if (status === MOUSE_STATUS.CHARGING) {
       this.#widgets.label.add_style_class_name("charging");
-    } else if (this.#state.level <= 10) {
+    } else if (level <= 10) {
       this.#widgets.label.add_style_class_name("critical");
     } else {
       this.#widgets.label.remove_style_class_name("critical");
     }
-
-    return GLib.SOURCE_CONTINUE;
-  }
-
-  /**
-   * @returns {Primise<{status: string, level: string}>} Get current battery level
-   */
-  async #getBatteryState() {
-    let proc = null;
-    try {
-      proc = await utils.callCommand([
-        "/usr/local/bin/rivalcfg",
-        "--battery-level",
-      ]);
-    } catch (e) {
-      utils.log(`Error getting battery state: ${e.message}`);
-      utils.log(e.stack);
-    }
-    utils.log(`Got battery state: ${proc.code}|${proc.stdout}|${proc.stderr}`);
-
-    if (proc.code !== 0)
-      return {
-        status: MOUSE_STATUS.UNKNOWN,
-        level: -1,
-      };
-
-    const out = proc.stdout.split(" ");
-
-    let status = MOUSE_STATUS.UNKNOWN;
-    if (out[0] === "Charging") {
-      status = MOUSE_STATUS.CHARGING;
-    } else if (out[0] === "Discharging") {
-      status = MOUSE_STATUS.DISCHARGING;
-    }
-
-    let level = "?";
-    if (status !== MOUSE_STATUS.UNKNOWN) {
-      level = out[out.length - 2];
-    }
-
-    return {
-      status: status,
-      level: level,
-    };
   }
 
   /**
@@ -211,11 +167,16 @@ export default class SteelSeriesIndicator extends PanelMenu.Button {
         return "battery-caution-symbolic";
       }
     }
+
+    return "battery-missing";
+  }
+
+  #getBatteryLevelString(level) {
+    return level > 0 ? `${level}%` : "?";
   }
 
   destroy() {
-    GLib.source_remove(this.#sourceIds.refresh);
-    GLib.source_remove(this.#sourceIds.repaint);
+    GLib.Source.remove(this.#source);
 
     this.#widgets?.icon?.destroy();
     this.#widgets?.label?.destroy();

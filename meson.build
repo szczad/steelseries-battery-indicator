@@ -57,7 +57,7 @@ gse_npm_command_obj = find_program('npm', required:false)
 
 # Include extension-specific settings
 
-gse_sources         += files('src/utils.js', 'src/indicator.js')
+gse_sources         += files('src/utils.js', 'src/indicator.js', 'src/constants.js')
 gse_libs            += []
 gse_data            += []
 gse_schemas         += []
@@ -71,7 +71,7 @@ if gse_run_command_obj.returncode() != 0
 endif
 home     = gse_run_command_obj.stdout().strip()
 
-gse_uuid		 = meson.project_name() + '@szczad.pl'
+gse_uuid		 = meson.project_name() + '@szczad.github.com'
 gse_target_dir		 = home + '/.local/share/gnome-shell/extensions/' + gse_uuid
 gse_target_dir_schemas   = join_paths(gse_target_dir, 'schemas')
 gse_target_locale_dir    = join_paths(gse_target_dir, 'locale')

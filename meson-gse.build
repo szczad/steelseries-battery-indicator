@@ -1,9 +1,9 @@
 gse_project(
   {steelseries-battery-indicator}, 
-  {szczad.pl}, 
+  {szczad.github.com},
   {1},
 {
-gse_sources         += files('src/utils.js', 'src/indicator.js')
+gse_sources         += files('src/utils.js', 'src/indicator.js', 'src/constants.js')
 gse_libs            += []
 gse_data            += []
 gse_schemas         += []
