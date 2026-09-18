@@ -19,12 +19,6 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v7.0.1
-        with:
-          fetch-depth: 0
-          submodules: recursive
-
       - name: Install build dependencies
         run: >-
           dnf install --assumeyes
@@ -37,6 +31,12 @@ jobs:
           ninja-build
           nodejs22-npm
           zip
+
+      - name: Check out repository
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          submodules: recursive
 
       - name: Configure
         run: meson setup build
