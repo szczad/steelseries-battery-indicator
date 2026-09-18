@@ -1,16 +1,18 @@
 {
   "name": "SteelSeries Battery Indicator",
   "description": "Shows battery status of your SteelSeries mouse",
-  "url": "https://github.com/szczad/steelseries-indicator",
+  "url": "https://github.com/szczad/steelseries-battery-indicator",
   "uuid": "@uuid@",
   "shell-version": [
     "45",
     "46",
     "47",
-    "48"
+    "48",
+    "49",
+    "50"
   ],
   "gettext-domain": "@gettext_domain@",
+  "settings-schema": "org.gnome.shell.extensions.steelseries-battery-indicator",
   "vcs_revision": "@VCS_TAG@",
   "version": @version@
 }
-

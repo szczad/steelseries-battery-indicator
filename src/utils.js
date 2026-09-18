@@ -1,40 +1,53 @@
 import Gio from "gi://Gio";
+import GLib from "gi://GLib";
 
-const LOG_NAME = "steelseries-indicator@szczad.pl";
+export function runCommand(argv, timeoutMs, cancellable = null) {
+  return new Promise((resolve, reject) => {
+    const operation = cancellable ?? new Gio.Cancellable();
+    const proc = new Gio.Subprocess({
+      argv,
+      flags: Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE,
+    });
+    let cancelId = 0;
+    let timeoutId = 0;
+    let timedOut = false;
 
-/**
- * @param {string[]} Arguments to the command line.
- *
- * @returns {Promise<{code: int, stdout: string, stderr: string}>}
- */
-export async function callCommand(argv) {
-  let cancelId = 0;
-  const cancellable = new Gio.Cancellable();
-  const proc = new Gio.Subprocess({
-    argv,
-    flags: Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE,
-  });
-  proc.init(cancellable);
-
-  if (cancellable instanceof Gio.Cancellable) {
-    cancelId = cancellable.connect(() => proc.force_exit());
-  }
-
-  try {
-    const [_, stdout, stderr] = await proc.communicate_utf8(null, cancellable);
-    const status = proc.get_exit_status();
-
-    return {
-      code: status,
-      stdout: stdout ? stdout.trim() : stdout,
-      stderr: stderr ? stderr.trim() : stderr,
+    const cleanup = () => {
+      if (timeoutId) GLib.Source.remove(timeoutId);
+      if (cancelId) operation.disconnect(cancelId);
+      timeoutId = 0;
+      cancelId = 0;
     };
-  } finally {
-    if (cancelId > 0) cancellable.disconnect(cancelId);
-  }
-}
 
-/** @param {string} Text to be sent to the console */
-export function log(text) {
-  console.log(`[${LOG_NAME}]: ${text}`);
+    try {
+      proc.init(operation);
+      cancelId = operation.connect(() => proc.force_exit());
+      timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, timeoutMs, () => {
+        timeoutId = 0;
+        timedOut = true;
+        operation.cancel();
+        return GLib.SOURCE_REMOVE;
+      });
+
+      proc.communicate_utf8_async(null, operation, (_proc, result) => {
+        try {
+          const [, stdout, stderr] = _proc.communicate_utf8_finish(result);
+          const status = _proc.get_exit_status();
+
+          if (status !== 0) {
+            reject(new Error(stderr?.trim() || `Command exited with ${status}`));
+          } else {
+            resolve(stdout?.trim() ?? "");
+          }
+        } catch (error) {
+          reject(timedOut ? new Error("Command timed out") : error);
+        } finally {
+          cleanup();
+        }
+      });
+    } catch (error) {
+      cleanup();
+      reject(error);
+    }
+  });
 }

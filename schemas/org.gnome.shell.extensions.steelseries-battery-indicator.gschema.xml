@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema
+    id="org.gnome.shell.extensions.steelseries-battery-indicator"
+    path="/org/gnome/shell/extensions/steelseries-battery-indicator/"
+    >
+
+    <key name="update-interval" type="u">
+      <default>60</default>
+      <range min="10" max="3600"/>
+      <summary>Interval in seconds to update the indicator</summary>
+    </key>
+
+  </schema>
+</schemalist>
