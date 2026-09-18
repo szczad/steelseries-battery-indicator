@@ -1,0 +1,86 @@
+name: CI and release
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-and-release:
+    name: Build, test, and package
+    runs-on: ubuntu-24.04
+    container: fedora:44
+    timeout-minutes: 20
+
+    steps:
+      - name: Install build dependencies
+        run: >-
+          dnf install --assumeyes
+          gettext
+          git-core
+          gjs
+          glib2
+          gnome-shell
+          meson
+          ninja-build
+          nodejs22-npm
+          zip
+
+      - name: Check out repository
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Configure
+        run: meson setup build
+
+      - name: Build
+        run: meson compile -C build
+
+      - name: Test
+        run: meson test -C build --print-errorlogs
+
+      - name: Package
+        run: meson compile -C build extension.zip
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          path: build/extension.zip
+          archive: false
+          retention-days: 14
+
+      - name: Verify release tag is on master
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          git fetch origin master --no-tags
+          tag_commit="$(git rev-parse "${GITHUB_REF}^{commit}")"
+          if ! git merge-base --is-ancestor "$tag_commit" FETCH_HEAD; then
+            echo "Release tag must point to a commit contained in master." >&2
+            exit 1
+          fi
+
+      - name: Publish to GNOME Extensions
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          EGO_USERNAME: ${{ secrets.EGO_USERNAME }}
+          EGO_PASSWORD: ${{ secrets.EGO_PASSWORD }}
+        run: |
+          : "${EGO_USERNAME:?EGO_USERNAME secret is required}"
+          : "${EGO_PASSWORD:?EGO_PASSWORD secret is required}"
+          password_file="$(mktemp "${RUNNER_TEMP}/ego-password.XXXXXX")"
+          trap 'rm -f "$password_file"' EXIT
+          chmod 600 "$password_file"
+          printf '%s' "$EGO_PASSWORD" > "$password_file"
+          gnome-extensions upload \
+            --accept-tos \
+            --user "$EGO_USERNAME" \
+            --password-file "$password_file" \
+            build/extension.zip
