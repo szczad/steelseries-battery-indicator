@@ -1,0 +1,9 @@
+#!/bin/sh
+
+set -eu
+
+if [ -n "${DESTDIR:-}" ]; then
+  find "$DESTDIR" -type f \
+    -path "*/$1/schemas/gschemas.compiled" \
+    -delete
+fi

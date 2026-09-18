@@ -63,6 +63,10 @@ gse_data            += []
 gse_schemas         += []
 gse_dbus_interfaces += []
 
+meson.add_install_script(
+  'build-aux/remove-packaged-schema',
+  meson.project_name() + '@szczad.github.com')
+
 gse_test_runner = find_program('gjs')
 test('Unit tests', gse_test_runner,
   args: ['-m', join_paths(meson.current_source_dir(), 'tests/test.js')])
