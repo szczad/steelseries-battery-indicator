@@ -16,21 +16,24 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
-import { panel as MainPanel } from 'resource:///org/gnome/shell/ui/main.js';
+import { Extension } from "resource:///org/gnome/shell/extensions/extension.js";
+import { panel as MainPanel } from "resource:///org/gnome/shell/ui/main.js";
 
-import SteelSeriesIndicator from './indicator.js';
+import SteelSeriesIndicator from "./indicator.js";
 
 export default class SteelSeriesIndicatorExtension extends Extension {
-    #indicator = null
+  #indicator = null;
+  #settings = null;
 
-    enable() {
-        this.#indicator = new SteelSeriesIndicator(this);
-        MainPanel.addToStatusArea(this.uuid, this.#indicator);
-    }
+  enable() {
+    this.#settings = this.getSettings();
+    this.#indicator = new SteelSeriesIndicator(this, this.#settings);
+    MainPanel.addToStatusArea(this.uuid, this.#indicator);
+  }
 
-    disable() {
-        this.#indicator.destroy();
-        this.#indicator = null;
-    }
+  disable() {
+    this.#indicator?.destroy();
+    this.#indicator = null;
+    this.#settings = null;
+  }
 }

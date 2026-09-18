@@ -57,11 +57,15 @@ gse_npm_command_obj = find_program('npm', required:false)
 
 # Include extension-specific settings
 
-gse_sources         += files('src/utils.js', 'src/indicator.js', 'src/constants.js')
+gse_sources         += files('src/utils.js', 'src/battery.js', 'src/indicator.js')
 gse_libs            += []
 gse_data            += []
 gse_schemas         += []
 gse_dbus_interfaces += []
+
+gse_test_runner = find_program('gjs')
+test('Unit tests', gse_test_runner,
+  args: ['-m', join_paths(meson.current_source_dir(), 'tests/test.js')])
 # End of extension-specific settings
 
 # Boilerplate
