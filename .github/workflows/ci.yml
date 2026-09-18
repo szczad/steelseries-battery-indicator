@@ -38,6 +38,9 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
+      - name: Mark repository as safe
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Configure
         run: meson setup build
 
